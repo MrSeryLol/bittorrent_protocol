@@ -22,21 +22,16 @@ export class Tracker {
             0x76, 0x77, 0x78, 0x79, 0x7A, 0x7E
         ];
 
+        let announce = new TextDecoder().decode(file.announce); // Ссылка на торрент-файл
         let charPair = ""; // Переменная для пары байтов
         let decodedInfoHash = ""; // Строка, в которой будет храниться преобразованный info_hash
-
-        let announce = new TextDecoder().decode(file.announce); // Ссылка на торрент-файл
 
         if (announce === undefined) {
             return "";
         }
 
         const bencodedInfoHash = bencode.encode(file.info); // Берём info_hash из нашего проинициализированного файла
-        console.log(file.info);
-        //console.log(file.info?.pieces.length! % 20 === 0);
-        //console.log(bencode.decode(bencodedInfoHash));
         const hash = createHash("sha1").update(bencodedInfoHash).digest("hex"); // Делаем из него sha1-хэш в hex-виде
-        //const hash = createHash("sha1").update(bencodedInfoHash).digest("hex");
         //const hash = "2b66980093bc11806fab50cb3cb41835b95a0362";
 
         for (let i = 0; i <= hash.length; i++) {
@@ -46,7 +41,6 @@ export class Tracker {
                     charPair = ""; // Делаем пару байтов пустыми, чтобы сюда вписать новые
                 }
                 else { // Если такого ASCII-кода нет в массиве допустимых ASCII-кодов, то оставляем как есть и добавляем в строку в виде "%nn"
-                    //decodedInfoHash += `%${charPair}`;
                     decodedInfoHash += `%${charPair}`;
                     charPair = ""; // Делаем пару байтов пустыми, чтобы сюда вписать новые
                 }
@@ -56,8 +50,6 @@ export class Tracker {
                 charPair += hash[i];
             }
         }
-
-        //console.log(hash);
 
         // Необходимые параметры для GET-запроса для получения ответа от Tracker-сервера + info_hash, который записываем сами
         const requestParams = { 
@@ -69,13 +61,15 @@ export class Tracker {
             "left": file.info?.length.toString(),
         };
 
+        // const base = new URL(announce); // Преобразуем строку с ссылкой файла в класс URL
+        // for (const [key, value] of Object.entries(requestParams)) {
+        //     //const urlEncodedValue = encodeURIComponent(value as string);
+        //     base.searchParams.append(key, value as string);
+        // }
+
+
         announce += `?info_hash=${decodedInfoHash}&peer_id=-TO0042-0ab8e8a31019&port=6881&uploaded=0&downloaded=0&compact=1&left=${file.info?.length.toString()}`; // Вносим параметр info_hash без использования методов URL, т.к. неправильно преобразует символы UTF-16 в ASCII
         const base = new URL(announce); // Преобразуем строку с ссылкой файла в класс URL
-
-        // for (const [key, value] of Object.entries(requestParams)) {
-        //     const urlEncodedValue = encodeURIComponent(value as string);
-        //     base.searchParams.append(key, urlEncodedValue as string);
-        // }
 
         console.log(base.href);
         return base.href; // Возвращаем строку с полностью готовыми данными для отправки на Tracker-сервер
@@ -85,27 +79,15 @@ export class Tracker {
         const url = Tracker.buildTrackerURL(file, peerID, port);
         let peers: Peer[] = [];
         let trackerResponse: TrackerResponse;
-
-        // const response = await axios.get(url, { responseEncoding: "binary", responseType: "arraybuffer" });
-        //     let trackerResponse: TrackerResponse = bencode.decode(response.data, "utf8");
-
         try {
             const response = await axios.get(url, { responseEncoding: "utf8", responseType: "arraybuffer" });
             trackerResponse = bencode.decode(response.data);
-            //console.log(trackerResponse instanceof trackerResponse);
         } 
         catch(error) {
             console.log(error);
         }
 
         peers = Peer.unmarshal(Buffer.from(trackerResponse!.peers));
-        console.log(peers.length);
-
-        //let a: any = 12;
-
-
-
-
-
+        return peers;
     }
 }

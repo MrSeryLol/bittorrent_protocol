@@ -1,16 +1,16 @@
 export class Peer {
-    private _IP: Buffer;
+    private _IPv4: Buffer;
     private _port: Buffer;
 
-    constructor(IP: Buffer, port: Buffer) {
-        this._IP = IP;
+    constructor(IPv4: Buffer, port: Buffer) {
+        this._IPv4 = IPv4;
         this._port = port;
     }
 
     public static unmarshal(rawPeers: Buffer): Peer[] {
-        const peerSize = 6; // IP (4 байта) + port (2 байта)
-        const IP_Bytes_Offset = 4; // Первые 4 байта - это айпи пользователя
-        const portBytesOffset = peerSize - IP_Bytes_Offset; // Последние 2 байта - это порт пользователя
+        const peerSize = 6; // IPv4 (4 байта) + port (2 байта)
+        const IPv4_Bytes_Offset = 4; // Первые 4 байта - это айпи пользователя
+        const portBytesOffset = peerSize - IPv4_Bytes_Offset; // Последние 2 байта - это порт пользователя
 
         let peers: Peer[] = []; // Массив для хранения пиров
 
@@ -24,28 +24,20 @@ export class Peer {
         for (let i = 0; i < peerCount; i++) {
             let offset = i * peerSize;
             peers.push(new Peer(
-                rawPeers.subarray(offset, offset + IP_Bytes_Offset),
-                rawPeers.subarray(offset + IP_Bytes_Offset, offset + IP_Bytes_Offset + portBytesOffset)) // Последние 2 байта - это порт пользователя
+                rawPeers.subarray(offset, offset + IPv4_Bytes_Offset),
+                rawPeers.subarray(offset + IPv4_Bytes_Offset, offset + IPv4_Bytes_Offset + portBytesOffset)) // Последние 2 байта - это порт пользователя
             );
         }
 
         return peers;
     }
 
-    get IP() {
-        return this._IP;
+    get IPv4() {
+        return `${this._IPv4[0]}.${this._IPv4[1]}.${this._IPv4[2]}.${this._IPv4[3]}`;
     }
 
     get port() {
-        return this._port;
+        return Number.parseInt(this._port.toString("hex"), 16);
     }
-
-    // set IP(IP: Buffer) {
-    //     this._IP = IP;
-    // }
-
-    // set port(port: Buffer) {
-    //     this._port = port;
-    // }
 }
 
