@@ -15,9 +15,9 @@ describe("SingleFileMetainfo", () => {
         expect(announceString).toBe("http://bttracker.debian.org:6969/announce");
         expect(metainfoFile.info!.length).toBe(659554304);
         expect(nameString).toBe("debian-12.5.0-amd64-netinst.iso");
-        expect(metainfoFile.info!.pieceLength).toBe(262144);
+        expect(metainfoFile.info!["piece length"]).toBe(262144);
         expect(metainfoFile.info!.pieces.length / 20).toBe(
             Number.parseInt(metainfoFile.info!.length.toString()) /
-            Number.parseInt(metainfoFile.info!.pieceLength.toString()));
+            Number.parseInt(metainfoFile.info!["piece length"].toString()));
     })
 })
