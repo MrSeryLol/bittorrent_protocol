@@ -3,10 +3,10 @@ import { readFile } from "fs/promises";
 import bencode from "bencode";
 
 type SingleFileInfo = {
-    length: Buffer,
-    name: Buffer,
-    pieceLength: Buffer,
-    pieces: Buffer
+    "length": Buffer,
+    "name": Buffer,
+    "piece length": Buffer,
+    "pieces": Buffer
 }
 
 export class SingleFileMetainfo {
@@ -25,7 +25,11 @@ export class SingleFileMetainfo {
             ({ announce: this._announce, info: this._info } = metainfo);
         }
         catch (err) {
-            console.log(err);
+            if (err instanceof Error) {
+                //console.log((err as NodeJS.ErrnoException).message);
+                //console.log((err as NodeJS.ErrnoException).code);
+                console.log(err);
+            }
         }
     }
 
