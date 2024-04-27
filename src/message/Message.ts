@@ -1,26 +1,24 @@
 import { Buffer } from "buffer";
-import { Readable } from "stream";
 
+type MessageID = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
 
-type messageID = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
-
-export const msgChoke: messageID = 0;
-export const msgUnchoke: messageID = 1;
-export const msgInterested: messageID = 2;
-export const msgNotInterested: messageID =  3;
-export const msgHave: messageID =  4;
-export const msgBitfield: messageID = 5;
-export const msgRequest: messageID = 6;
-export const msgPiece: messageID = 7;
-export const msgCancel: messageID =  8;
-export const msgPort: messageID = 9;
+export const msgChoke: MessageID = 0;
+export const msgUnchoke: MessageID = 1;
+export const msgInterested: MessageID = 2;
+export const msgNotInterested: MessageID =  3;
+export const msgHave: MessageID =  4;
+export const msgBitfield: MessageID = 5;
+export const msgRequest: MessageID = 6;
+export const msgPiece: MessageID = 7;
+export const msgCancel: MessageID =  8;
+export const msgPort: MessageID = 9;
 
 export class Message {
     private _lengthBuffer: Buffer = Buffer.alloc(4); // Длина сообщения всегда 4 байта, т.е. 0xFFFFFFFF = 4.294.967.295 - максимальное значение
-    private _ID?: messageID;
+    private _ID?: MessageID;
     private _payload?: Buffer;
 
-    constructor(ID?: messageID, payload?: Buffer) {
+    constructor(ID?: MessageID, payload?: Buffer) {
         this._ID = ID;
         this._payload = payload;
     }
@@ -58,7 +56,7 @@ export class Message {
             return null; // keep-alive message
         }
 
-        const messageID = msgBuffer.readUInt8(offset) as messageID; // Значение ID находится сразу после части длины
+        const messageID = msgBuffer.readUInt8(offset) as MessageID; // Значение ID находится сразу после части длины
         const payload = msgBuffer.subarray(offset + 1); // payload находится сразу после ID
 
         return new Message(messageID, payload);
