@@ -4,17 +4,31 @@ import { Message, msgBitfield, msgCancel, msgChoke, msgHave, msgInterested, msgN
 import { Peer } from "../peer/Peer.js";
 import { Handshake } from "../handshake/handshake.js";
 import { Bitfield } from "./Bitfield.js";
+import { TypedEmitter } from "tiny-typed-emitter";
 
-export class Client {
+interface IMessageEvents {
+    msgChoke: (message: Message) => void;
+    msgUnchoke: (message: Message) => void;
+    msgInterested: (message: Message) => void;
+    msgNotInterested: (message: Message) => void;
+    msgHave: (message: Message) => void;
+    msgBitfield: (message: Message) => void;
+    msgRequest: (message: Message) => void;
+    msgPiece: (message: Message) => void;
+    msgCancel: (message: Message) => void;
+    msgPort: (message: Message) => void;
+}
+
+export class Client extends TypedEmitter<IMessageEvents> {
     private _client: net.Socket;
     private _handshake: Handshake;
-    // private _message: Message;
-    // private _bitfield: Bitfield;
+    //private _bitfield: Bitfield;
     // private _peer: Peer;
     // private _infoHash: string;
     // private _peerID: string; 
 
     constructor(client: net.Socket, handshake: Handshake) {
+        super();
         this._client = client;
         this._handshake = handshake;
         this._client.on("error", (error) => {
@@ -55,13 +69,17 @@ export class Client {
         })
     }
 
-    public msgHandler(msgBuffer: Buffer) {
+    private msgHandler(msgBuffer: Buffer) {
         if (Message.isHandshake(msgBuffer)) {
             this.readHandshake(msgBuffer, this._handshake);
             return;
         }
 
         const message = Message.read(msgBuffer);
+
+        if (message === null) {
+            return;
+        }
 
         switch (message!.ID) {
             case msgChoke:
@@ -75,7 +93,7 @@ export class Client {
             case msgHave:
                 break;
             case msgBitfield:
-                this.readBitfield(message!);
+                this.emit("msgBitfield", message!);
                 break;
             case msgRequest:
                 break;
@@ -90,7 +108,7 @@ export class Client {
         }
     }
 
-    public readHandshake(handshakeBuffer: Buffer, handshake: Handshake) {
+    private readHandshake(handshakeBuffer: Buffer, handshake: Handshake) {
         const response = handshake.read(handshakeBuffer); // Делаем handshake с треккером, чтобы сравнить info_hash
         if (response.infoHash.compare(handshake.infoHash) !== 0) {
             console.log(`Expected ${handshake.infoHash}, but get ${response.infoHash}`);
@@ -102,7 +120,7 @@ export class Client {
     }
 
     public readBitfield(message: Message) {
-        console.log("Прочитали bitfield");
+        console.log(`Получили сообщение:\nID: ${message.ID}\nPayload: ${message.payload}`);
     }
 
     public readMsg(msgBuffer: Buffer) {

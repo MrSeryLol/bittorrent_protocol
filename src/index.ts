@@ -27,7 +27,10 @@ async function main() {
     for (const peer of peers) {
         const client: Client = new Client(new net.Socket(), handshake);
         client.startConnection(peer, handshake);
-        
+
+        client.on("msgBitfield", (message) => {
+            client.readBitfield(message);
+        })
         
     }
 }
