@@ -22,8 +22,8 @@ interface IMessageEvents {
 export class Client extends TypedEmitter<IMessageEvents> {
     private _client: net.Socket;
     private _handshake: Handshake;
-    //private _bitfield: Bitfield;
-    // private _peer: Peer;
+    private _bitfield?: Bitfield = undefined;
+    private _peer?: Peer = undefined;
     // private _infoHash: string;
     // private _peerID: string; 
 
@@ -36,10 +36,10 @@ export class Client extends TypedEmitter<IMessageEvents> {
         });
     }
 
-    public startConnection(peer: Peer, handshake: Handshake) {
+    public startConnection(peer: Peer) {
         this._client.connect(peer.port, peer.IPv4, () => {
-            console.log(`Подключились к пиру: ${peer.IPv4}:${peer.port}`);
-            this._handshake = handshake;
+            console.log(`Попытка подключиться к пиру: ${peer.IPv4}:${peer.port}`);
+            this._peer = peer;
 
             // Отправляем на сервер своё "рукопожатие"
             let info = this._client.write(this._handshake.serialize()); 
@@ -81,7 +81,7 @@ export class Client extends TypedEmitter<IMessageEvents> {
             return;
         }
 
-        switch (message!.ID) {
+        switch (message.ID) {
             case msgChoke:
                 break;
             case msgUnchoke:
@@ -113,14 +113,21 @@ export class Client extends TypedEmitter<IMessageEvents> {
         if (response.infoHash.compare(handshake.infoHash) !== 0) {
             console.log(`Expected ${handshake.infoHash}, but get ${response.infoHash}`);
             this._client.destroy(new Error(`Expected ${handshake.infoHash}, but get ${response.infoHash} (Несовпадение info_hash)`));
+            console.log(`Cannot handshake with peer: ${this._peer?.IPv4}`)
             return;
         }
 
-        console.log("Info hashes are equal!!!");
+        console.log(`Completed handshake with peer: ${this._peer?.IPv4}`);
     }
 
     public readBitfield(message: Message) {
         console.log(`Получили сообщение:\nID: ${message.ID}\nPayload: ${message.payload}`);
+
+        if (message.ID !== msgBitfield) {
+            this._client.destroy(new Error(`Expected bittfield ID = 5, but get ID = ${message.ID}`));
+        }
+
+        this._bitfield = Bitfield.create(message.payload!);
     }
 
     public readMsg(msgBuffer: Buffer) {
