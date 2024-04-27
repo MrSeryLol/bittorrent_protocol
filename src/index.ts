@@ -3,6 +3,8 @@ import { SingleFileMetainfo } from "./metainfo_file/SingleFileMetainfo.js";
 import { Tracker } from "./tracker/Tracker.js";
 import * as net from "net";
 import bencode from "bencode";
+import { Message, msgBitfield } from "./message/Message.js";
+import { Client } from "./client/Client.js";
 const { createHash } = await import("node:crypto");
 
 async function main() {
@@ -12,6 +14,7 @@ async function main() {
     //const filePath = "C:\\bittorrent_for_app\\sintel.torrent";
     await file.open(filePath);
 
+    console.log(file.info);
     const peers = await Tracker.requestPeers(file);
 
     // Создание клиента (подключение к пирам от торрент файла)
@@ -22,33 +25,10 @@ async function main() {
     const handshake = Handshake.create(hexHash, Buffer.from("-TO0042-0ab8e8a31019"));
 
     for (const peer of peers) {
-        const client = new net.Socket();
-
-        client.connect(peer.port, peer.IPv4, () => {
-            console.log(`Подключились к следующим пирам: ${peer.IPv4}:${peer.port}`);
-
-            let info = client.write(handshake.serialize());
-            console.log(info);
-        })
-
-        client.on("data", (data) => {
-            console.log(`Data received: ${data}\nfrom peer: ${peer.IPv4}:${peer.port}`);
-
-            const response = handshake.read(data); // Делаем handshake с треккером, чтобы сравнить info_hash
-            
-            if (response.infoHash.compare(handshake.infoHash) !== 0) {
-                console.log(`Expected ${handshake.infoHash}, but get ${response.infoHash}`);
-                client.destroy(new Error("kal"));
-            }
-
-            else {
-                console.log("Info hashes are equal!!!");
-            }
-        })
-
-        client.on("error", (error) => {
-            console.log(`Error: ${error}`);
-        });
+        const client: Client = new Client(new net.Socket(), handshake);
+        client.startConnection(peer, handshake);
+        
+        
     }
 }
 
