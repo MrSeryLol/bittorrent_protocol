@@ -28,8 +28,17 @@ async function main() {
         const client: Client = new Client(new net.Socket(), handshake);
         client.startConnection(peer);
 
+        // client.readBitfield() 
+
+        // client.once("msgBitfield", (message) => {
+        //     client.readBitfield(message!);
+        //     client.sendUnchoke();
+        // })
+
         client.on("msgBitfield", (message) => {
             client.readBitfield(message);
+            client.sendUnchoke();
+            client.sendInterested();
         })
 
         

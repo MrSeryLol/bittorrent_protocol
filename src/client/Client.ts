@@ -1,6 +1,8 @@
 import * as net from "net";
-import { Message, msgBitfield, msgCancel, msgChoke, msgHave, msgInterested, msgNotInterested, msgPiece, 
-    msgPort, msgRequest, msgUnchoke } from "../message/Message.js";
+import {
+    Message, msgBitfield, msgCancel, msgChoke, msgHave, msgInterested, msgNotInterested, msgPiece,
+    msgPort, msgRequest, msgUnchoke
+} from "../message/Message.js";
 import { Peer } from "../peer/Peer.js";
 import { Handshake } from "../handshake/handshake.js";
 import { Bitfield } from "./Bitfield.js";
@@ -8,7 +10,7 @@ import { TypedEmitter } from "tiny-typed-emitter";
 
 interface IMessageEvents {
     msgChoke: (message: Message) => void;
-    msgUnchoke: (message: Message) => void;
+    msgUnchoke: () => void;
     msgInterested: (message: Message) => void;
     msgNotInterested: (message: Message) => void;
     msgHave: (message: Message) => void;
@@ -42,7 +44,7 @@ export class Client extends TypedEmitter<IMessageEvents> {
             this._peer = peer;
 
             // Отправляем на сервер своё "рукопожатие"
-            let info = this._client.write(this._handshake.serialize()); 
+            let info = this._client.write(this._handshake.serialize());
             console.log(info);
         });
 
@@ -85,6 +87,7 @@ export class Client extends TypedEmitter<IMessageEvents> {
             case msgChoke:
                 break;
             case msgUnchoke:
+                this.emit("msgUnchoke");
                 break;
             case msgInterested:
                 break;
@@ -128,6 +131,16 @@ export class Client extends TypedEmitter<IMessageEvents> {
         }
 
         this._bitfield = Bitfield.create(message.payload!);
+    }
+
+    public sendUnchoke() {
+        const message = new Message(msgUnchoke);
+        this._client.write(message.serialize());
+    }
+
+    public sendInterested() {
+        const message = new Message(msgInterested);
+        this._client.write(message.serialize());
     }
 
     public readMsg(msgBuffer: Buffer) {
