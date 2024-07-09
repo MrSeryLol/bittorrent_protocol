@@ -3,28 +3,28 @@ import {
     Message, msgBitfield, msgCancel, msgChoke, msgHave, msgInterested, msgNotInterested, msgPiece,
     msgPort, msgRequest, msgUnchoke
 } from "../message/Message.js";
+import { IMessageEvents } from "../message/IMessageEvents.js";
 import { Peer } from "../peer/Peer.js";
 import { Handshake } from "../handshake/handshake.js";
 import { Bitfield } from "./Bitfield.js";
 import { TypedEmitter } from "tiny-typed-emitter";
+import { Piece } from "./Piece.js";
+import { PieceResponse } from "./types/PieceResponse.js";
 
-interface IMessageEvents {
-    msgChoke: (message: Message) => void;
-    msgUnchoke: () => void;
-    msgInterested: (message: Message) => void;
-    msgNotInterested: (message: Message) => void;
-    msgHave: (message: Message) => void;
-    msgBitfield: (message: Message) => void;
-    msgRequest: (message: Message) => void;
-    msgPiece: (message: Message) => void;
-    msgCancel: (message: Message) => void;
-    msgPort: (message: Message) => void;
-}
-
+// Класс Client
+// Главный класс всего проекта
+// 1) Хранит информацию о пирах, к которым присоединился клиент (IP, port, Bitfield)
+// 2) Принимает все входящие сообщения от треккера и отправляет сообщения треккеру
+// 3) Хранит данные о самом клиенте 
 export class Client extends TypedEmitter<IMessageEvents> {
+    // Непосредственно сокет, который обращается к треккеру 
     private _client: net.Socket;
+    // Статус "задушенности" клиента. По умолчанию задушен. 
+    private _choked: boolean =  true;
+    // "Рукопожатие", которое необходимо для подтерждения установления связи с пиром
     private _handshake: Handshake;
-    private _bitfield?: Bitfield = undefined;
+    // Bitfield пира, к которому было произведено подключение
+    private _peerBitfield?: Bitfield = undefined;
     private _peer?: Peer = undefined;
     // private _infoHash: string;
     // private _peerID: string; 
@@ -33,12 +33,14 @@ export class Client extends TypedEmitter<IMessageEvents> {
         super();
         this._client = client;
         this._handshake = handshake;
+        // Инициализация события возникающих ошибок, пока происходит передача данных по протоколу
         this._client.on("error", (error) => {
             console.log(`Error: ${error}`);
         });
     }
 
-    public startConnection(peer: Peer) {
+    // Начать установление связи с пиром
+    public startConnection(peer: Peer, pieces: Piece[]) {
         this._client.connect(peer.port, peer.IPv4, () => {
             console.log(`Попытка подключиться к пиру: ${peer.IPv4}:${peer.port}`);
             this._peer = peer;
@@ -48,19 +50,23 @@ export class Client extends TypedEmitter<IMessageEvents> {
             console.log(info);
         });
 
+        // Вызываем функцию, которая считывает буфер входящих сообщений
+        // Коллбэк позволяет считывать сообщения и определять их тип
         this.onWholeMsg((msgBuffer) => this.msgHandler(msgBuffer));
     }
 
+    // Функция, которая считывает буфер входящих сообщений
     private onWholeMsg(callback: (msgBuffer: Buffer) => void) {
         let savedBuffer = Buffer.alloc(0);
         let isHandshake = true;
 
         this._client.on("data", (receivedBuffer) => {
-            console.log(`Получили буфер с данными: ${receivedBuffer}`);
             // Длина сообщения формируется от того, является ли сообщение "рукопожатием" или обычным сообщением,
             // которое следует после фазы удачного соединения. Если это самое первое сообщение, т.е. "рукопожатие",
             // то необходимо сформировать первый вариант. В остальных случаях длина сообщения находится в буфере
-            const msgLength = () => isHandshake ? savedBuffer.readUInt8() + 49 : savedBuffer.readUInt32BE();
+            // +4 байта оставляем для правильного сдвига байтов в массиве, потому что часть сообщения, которая
+            // указывает на длину сообщения (первые 4 байта), не входит в общую длину сообщения
+            const msgLength = () => isHandshake ? savedBuffer.readUInt8() + 49 : savedBuffer.readUInt32BE() + 4;
             savedBuffer = Buffer.concat([savedBuffer, receivedBuffer]);
 
             while (savedBuffer.length >= 4 && savedBuffer.length >= msgLength()) {
@@ -71,7 +77,10 @@ export class Client extends TypedEmitter<IMessageEvents> {
         })
     }
 
+    //Функция, которая обрабатывает входящие сообщения из открытого потока
     private msgHandler(msgBuffer: Buffer) {
+        // Проверка на "рукопожатие", потому что это единственное сообщение,
+        // которое отличается по своей структуре от других
         if (Message.isHandshake(msgBuffer)) {
             this.readHandshake(msgBuffer, this._handshake);
             return;
@@ -79,12 +88,16 @@ export class Client extends TypedEmitter<IMessageEvents> {
 
         const message = Message.read(msgBuffer);
 
+        // Если ссылка сообщения пустая, то это keep-alive сообщение
         if (message === null) {
             return;
         }
 
+        // Своего рода машина состояний, которая обрабатываем всевозможные сообщения
+        // в протоколе Bittorrent (в ver 0.0.2 реализованы не все сообщения)
         switch (message.ID) {
             case msgChoke:
+                this.emit("msgChoke");
                 break;
             case msgUnchoke:
                 this.emit("msgUnchoke");
@@ -99,8 +112,10 @@ export class Client extends TypedEmitter<IMessageEvents> {
                 this.emit("msgBitfield", message!);
                 break;
             case msgRequest:
+                this.emit("msgRequest", message!);
                 break;
             case msgPiece:
+                this.emit("msgPiece", message!);
                 break;
             case msgCancel:
                 break;
@@ -111,6 +126,7 @@ export class Client extends TypedEmitter<IMessageEvents> {
         }
     }
 
+    // Функция, которая считывает буфер с рукопожатием
     private readHandshake(handshakeBuffer: Buffer, handshake: Handshake) {
         const response = handshake.read(handshakeBuffer); // Делаем handshake с треккером, чтобы сравнить info_hash
         if (response.infoHash.compare(handshake.infoHash) !== 0) {
@@ -123,6 +139,7 @@ export class Client extends TypedEmitter<IMessageEvents> {
         console.log(`Completed handshake with peer: ${this._peer?.IPv4}`);
     }
 
+    // Функция, которая считывает Bitfield
     public readBitfield(message: Message) {
         console.log(`Получили сообщение:\nID: ${message.ID}\nPayload: ${message.payload}`);
 
@@ -130,33 +147,68 @@ export class Client extends TypedEmitter<IMessageEvents> {
             this._client.destroy(new Error(`Expected bittfield ID = 5, but get ID = ${message.ID}`));
         }
 
-        this._bitfield = Bitfield.create(message.payload!);
+        //Битфилд пира!!! Наш собственный битфилд (клиента) никак не фиксируется
+        this._peerBitfield = Bitfield.create(message.payload!);
     }
 
+    // Функция, которая душит клиента (закрывает сокет)
+    public readChoke() {
+        this._client.end();
+    }
+
+    // Функция, которая "открывает" клиента (открывает сокет)
+    public readUnchoke() {
+        this._choked = false;
+    }
+
+    // Считываем входящее сообщение с блоком от куска
+    public readPiece(message: Message): PieceResponse | null {
+        //console.log("Зашли в получение куска!");
+        if (message.ID !== msgPiece) {
+            console.log(`Expected msgPiece ID [${msgPiece}], but got ID [${message.ID}]`);
+            return null;
+        }
+
+        if (message.payload!.length < 8) {
+            console.log(`Payload too short. ${message.payload!.length} < 8`);
+            return null;
+        }
+
+        // Парсим сообщение с блоком
+        const parsedPiece = message.parsePiece();
+
+        return parsedPiece;
+    }
+
+    // Функция для отправки сообщения Unchoke
     public sendUnchoke() {
         const message = new Message(msgUnchoke);
         this._client.write(message.serialize());
     }
 
+    // Функция для отправки сообщения Interested
     public sendInterested() {
         const message = new Message(msgInterested);
         this._client.write(message.serialize());
     }
 
-    public readMsg(msgBuffer: Buffer) {
-        console.log(msgBuffer);
+    // Функция для отправки сообщения Request
+    public sendRequest(index: number, begin: number, length: number) {
+        const message = new Message(msgRequest);
+        message.formatRequest(index, begin, length);
+        this._client.write(message.serialize());
+    }
 
-        const message = Message.read(msgBuffer);
+    // Закрытие сокета
+    public endConnection() {
+        this._client.end();
+    }
 
-        if (message !== null) {
-            //console.log(`Получили сообщение:\nID: ${message.ID}\nPayload: ${message.payload}`);
-        }
+    get PeerBitfield() {
+        return this._peerBitfield;
+    }
 
-
-        //const message = new Message()
-
-
-        //console.log("Зашёл");
-
+    get Choked() {
+        return this._choked;
     }
 }
