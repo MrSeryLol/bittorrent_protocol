@@ -8,6 +8,7 @@ import { Client } from "./client/Client.js";
 import { DownloadingProcess } from "./client/DownloadingProcess.js";
 import { Torrent } from "./client/types/Torrent.js";
 const { createHash } = await import("node:crypto");
+import * as fs from "fs/promises";
 
 // Основная функция, в которой происходит беконечный цикл (в теории, пока этого нет)
 async function main() {
@@ -41,7 +42,8 @@ async function main() {
     };
 
     // Начинаем процесс загрузки файла
-    let downloadingProcess = new DownloadingProcess(torrent);
+    const fileHandle = await fs.open(`C:\\bittorrent_for_app\\${torrent.name}`, "w");
+    let downloadingProcess = new DownloadingProcess(torrent, fileHandle);
     downloadingProcess.startDownload();
 
     

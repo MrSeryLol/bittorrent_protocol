@@ -23,7 +23,7 @@ export class BlockQueue {
     // Вытаскивание блока для его дальнейшей отправки по сообщению request
     public deque(): Block {
         return this._peerBlocks.shift()!;
-    }
+    } 
 
     // Просмотр первого элемента очереди
     public peek(): Block {

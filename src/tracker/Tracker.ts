@@ -85,7 +85,9 @@ export class Tracker {
             trackerResponse = bencode.decode(response.data);
         } 
         catch(error) {
-            console.log(error);
+            if (axios.isAxiosError(error)) {
+                console.log(error);
+            }
         }
 
         peers = Peer.unmarshal(Buffer.from(trackerResponse!.peers));

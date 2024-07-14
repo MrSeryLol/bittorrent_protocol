@@ -5,6 +5,7 @@ import { createHash } from "node:crypto";
 import { Handshake } from "../handshake/handshake.js";
 import { Buffer } from "buffer";
 import * as fs from "fs/promises";
+//import * as fs from "fs";
 import { Piece } from "./Piece.js";
 import { BlockQueue } from "./BlockQueue.js";
 import { Block } from "./Block.js";
@@ -16,16 +17,18 @@ import { Torrent } from "./types/Torrent.js";
 export class DownloadingProcess {
     // Поле, в котором хранятся метаданные торрента
     private _torrent: Torrent;
+    private _fileHandle: fs.FileHandle;
+    private _downloaded: number = 0;
 
-    public constructor(torrent: Torrent) {
+    public constructor(torrent: Torrent, fileHandle: fs.FileHandle) {
         this._torrent = torrent;
+        this._fileHandle = fileHandle;
     }
 
     // Функция, которая открывает соединение с пирами и считывает входящие сообщения от пиров, 
     // а также скачивает файл на компьютер клиента
     public async download(peer: Peer, pieces: Piece[], handshake: Handshake) {
         const client: Client = new Client(new net.Socket(), handshake); // Создаём сокет
-        const file = await fs.open(`C:\\bittorrent_for_app\\${this._torrent.name}`, "w"); // Открываем файл на чтение
         const queue = new BlockQueue(this._torrent); // Для каждого пира собственная очередь
         client.startConnection(peer, pieces); // Связь устанавливаем с каждым из пиров
 
@@ -62,20 +65,18 @@ export class DownloadingProcess {
             // Кусок, индекс которого был в сообщении
             let piece: Piece | undefined;
 
-            console.log(`Пришёл кусок: ${requestedData?.index}`);
+            //console.log(`Пришёл кусок: ${requestedData?.index}`);
 
 
             if (requestedData !== null) { // Если в requestedData пустой буфер, значит данные не пришли и закачивать ничего не нужно
                 // offset необходим по той причине, что блоки приходят в случайном порядке, и нужно
                 // правильно находить область выделенной памяти для загрузки файла
                 const offset = requestedData.index * this._torrent.pieceLength + requestedData.begin;
-                file.write(requestedData.block, 0, requestedData.block.length, offset)
-                    //.then(value => console.log(`Записано ${value.bytesWritten} байт`))
-                    .catch(e => console.log(`Ошибка!!! ${e}`));
-                
+                await this._fileHandle.write(requestedData.block, 0, requestedData.block.length, offset);
+
                 // Находим часть файла, чтобы пометить блок как полученный
                 piece = pieces.find(piece => piece.index === requestedData.index);
-                
+
                 if (piece === undefined) {
                     console.log(`Ошибка при получении части файла: ${piece}`);
                     return;
@@ -86,7 +87,8 @@ export class DownloadingProcess {
                 block!.isReceived = true;
                 block!.data = requestedData.block;
 
-                console.log(`Скачано ${Utils.percentDone(this._torrent, pieces)}%`);
+                this._downloaded += block!.blockLength / Math.pow(2, 20);
+                console.log(`Скачано ${Utils.percentDone(this._torrent, pieces)}% [${this._downloaded} Mb / ${this._torrent.length / Math.pow(2, 20)} Mb]`);
             }
 
             // Если у части файла все блоки имеют не пустые буферы
@@ -103,8 +105,8 @@ export class DownloadingProcess {
                 client.endConnection();
 
                 try {
-                    await file.close();
-                } 
+                    await this._fileHandle.close();
+                }
                 catch (err) {
                     console.log(`Ошибка закрытия: ${err}`);
                 }

@@ -10,6 +10,7 @@ import { Bitfield } from "./Bitfield.js";
 import { TypedEmitter } from "tiny-typed-emitter";
 import { Piece } from "./Piece.js";
 import { PieceResponse } from "./types/PieceResponse.js";
+import * as fs from "fs/promises";
 
 // Класс Client
 // Главный класс всего проекта
@@ -23,6 +24,11 @@ export class Client extends TypedEmitter<IMessageEvents> {
     private _choked: boolean =  true;
     // "Рукопожатие", которое необходимо для подтерждения установления связи с пиром
     private _handshake: Handshake;
+
+    private _requestidData: Buffer = Buffer.alloc(0);
+
+    //private _fileHandle: fs.FileHandle;
+
     // Bitfield пира, к которому было произведено подключение
     private _peerBitfield?: Bitfield = undefined;
     private _peer?: Peer = undefined;
@@ -33,9 +39,12 @@ export class Client extends TypedEmitter<IMessageEvents> {
         super();
         this._client = client;
         this._handshake = handshake;
+        //this._fileHandle = fileHandle;
         // Инициализация события возникающих ошибок, пока происходит передача данных по протоколу
-        this._client.on("error", (error) => {
+        this._client.on("error", async (error) => {
             console.log(`Error: ${error}`);
+            this._client.end();
+            //await this._fileHandle.close();
         });
     }
 
