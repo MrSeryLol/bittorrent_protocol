@@ -27,7 +27,7 @@ export class Bitfield {
     // Будет вызываться при получении сообщения have, чтобы обновлять данные о
     // скачанных частях файла
     public setPiece(index: number) {
-        const byteIndex = index / 8;// В 1 байте 8 бит, поэтому делим на 8, если вышло за пределы 8, то это уже 2 байта
+        const byteIndex = Math.floor(index / 8);// В 1 байте 8 бит, поэтому делим на 8, если вышло за пределы 8, то это уже 2 байта
         const offset = index % 8;// offset - какой бит внутри байта проверяется (от 0 до 7), т.е. 8
 
         if (byteIndex < 0 || byteIndex > this._bitfield.length) {

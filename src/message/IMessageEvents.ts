@@ -7,9 +7,9 @@ export interface IMessageEvents {
     // Пришло сообщение Unchoke
     msgUnchoke: () => void;
     // Пришло сообщение Interested
-    msgInterested: (message: Message) => void;
+    msgInterested: () => void;
     // Пришло сообщение Not Interested
-    msgNotInterested: (message: Message) => void;
+    msgNotInterested: () => void;
     // Пришло сообщение Have
     msgHave: (message: Message) => void;
     // Пришло сообщение Bitfield

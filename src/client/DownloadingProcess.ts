@@ -34,19 +34,38 @@ export class DownloadingProcess {
 
         client.on("msgChoke", () => {
             client.readChoke();
+            console.log(`Пир: ${peer.IPv4}`)
         })
 
         client.on("msgUnchoke", () => {
             client.readUnchoke();
+            console.log(`Пир: ${peer.IPv4}`);
 
             // Отправляем запрос на получение целого куска файла
             this.requestPiece(client, pieces, queue, peer);
+        })
+
+        client.on("msgInterested", () => {
+            client.readInterested();
+        })
+
+        client.on("msgHave", (message) => {
+            client.readHave(message);
+
+            // Отправляем запрос на получение целого куска файла
+            this.requestPiece(client, pieces, queue, peer);
+        })
+
+        client.on("msgNotInterested", () => {
+            client.readNotInterested();
         })
 
         client.on("msgBitfield", (message) => {
             client.readBitfield(message);
             client.sendUnchoke();
             client.sendInterested();
+
+            console.log("Отправили unchoke и interested");
 
             // Добавляем все части, которые есть у пира, в очередь на закачку
             for (const piece of pieces) {
@@ -60,6 +79,7 @@ export class DownloadingProcess {
         })
 
         client.on("msgPiece", async (message) => {
+            console.log(`Пир: ${peer.IPv4}`);
             // При получении куска файла необходимо правильно его спарсить
             const requestedData = client.readPiece(message);
             // Кусок, индекс которого был в сообщении

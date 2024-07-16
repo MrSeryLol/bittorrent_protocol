@@ -52,6 +52,23 @@ export class Message {
         return this._payload;
     }
 
+    // Функция, которая формирует сообщение Have для пира
+    public formatHave(index: number) {
+        // Длина сообщения have = 5. 1 байт уже занят ID
+        this._payload = Buffer.alloc(4);
+        // Записываем переданный индекс в сообщение
+        this._payload.writeUint32BE(index);
+        // Возвращаем готовый payload
+        return this._payload;
+    }
+
+    // Функция для парсинга сообщения "have"
+    public parseHave() {
+        // Считываем индекс части файла
+        const parsedIndex = this._payload!.readUInt32BE();
+        return parsedIndex;
+    }
+
     // Функция для парсинга части файла (индекс, начало блока, блок)
     public parsePiece() {
         // Считываем индекс части файла

@@ -21,7 +21,9 @@ export class Client extends TypedEmitter<IMessageEvents> {
     // Непосредственно сокет, который обращается к треккеру 
     private _client: net.Socket;
     // Статус "задушенности" клиента. По умолчанию задушен. 
-    private _choked: boolean =  true;
+    private _amChoking: boolean =  true;
+    // Статус "заинтересованности" клиента. По умолчанию не заинтересован
+    private _amInterested: boolean = false;
     // "Рукопожатие", которое необходимо для подтерждения установления связи с пиром
     private _handshake: Handshake;
 
@@ -43,6 +45,7 @@ export class Client extends TypedEmitter<IMessageEvents> {
         // Инициализация события возникающих ошибок, пока происходит передача данных по протоколу
         this._client.on("error", async (error) => {
             console.log(`Error: ${error}`);
+            console.log(`Пир: ${this._peer?.IPv4}`);
             this._client.end();
             //await this._fileHandle.close();
         });
@@ -50,7 +53,7 @@ export class Client extends TypedEmitter<IMessageEvents> {
 
     // Начать установление связи с пиром
     public startConnection(peer: Peer, pieces: Piece[]) {
-        this._client.connect(peer.port, peer.IPv4, () => {
+        const a = this._client.connect(peer.port, peer.IPv4, () => {
             console.log(`Попытка подключиться к пиру: ${peer.IPv4}:${peer.port}`);
             this._peer = peer;
 
@@ -58,6 +61,8 @@ export class Client extends TypedEmitter<IMessageEvents> {
             let info = this._client.write(this._handshake.serialize());
             console.log(info);
         });
+
+        console.log(a);
 
         // Вызываем функцию, которая считывает буфер входящих сообщений
         // Коллбэк позволяет считывать сообщения и определять их тип
@@ -99,6 +104,7 @@ export class Client extends TypedEmitter<IMessageEvents> {
 
         // Если ссылка сообщения пустая, то это keep-alive сообщение
         if (message === null) {
+            console.log("keep-alive");
             return;
         }
 
@@ -112,10 +118,13 @@ export class Client extends TypedEmitter<IMessageEvents> {
                 this.emit("msgUnchoke");
                 break;
             case msgInterested:
+                this.emit("msgInterested");
                 break;
             case msgNotInterested:
+                this.emit("msgNotInterested");
                 break;
             case msgHave:
+                this.emit("msgHave", message!);
                 break;
             case msgBitfield:
                 this.emit("msgBitfield", message!);
@@ -162,12 +171,36 @@ export class Client extends TypedEmitter<IMessageEvents> {
 
     // Функция, которая душит клиента (закрывает сокет)
     public readChoke() {
-        this._client.end();
+        //this._client.end();
+        this._amChoking = true;
+        console.log("Пир задушил нас");
     }
 
     // Функция, которая "открывает" клиента (открывает сокет)
     public readUnchoke() {
-        this._choked = false;
+        this._amChoking = false;
+        console.log("Пир восстановил связь");
+    }
+
+    //Функция, которая меняет статус на "интересует"
+    public readInterested() {
+        this._amInterested = true;
+        console.log("Пир заинтересован в файле");
+    }
+
+    //Функция, которая меняет статус на "не интересует"
+    public readNotInterested() {
+        this._amInterested = false;
+        console.log("Пир больше не заинтересован в файле");
+    }
+
+    // Функция, которая меняет битовое поле при получении сообщения "have"
+    public readHave(message: Message) {
+        // Парсим сообщение
+        const parsedIndex = message.parseHave();
+
+        // Обновляем данные битового поля
+        this._peerBitfield?.setPiece(parsedIndex);
     }
 
     // Считываем входящее сообщение с блоком от куска
@@ -201,6 +234,13 @@ export class Client extends TypedEmitter<IMessageEvents> {
         this._client.write(message.serialize());
     }
 
+    // Функция для отправки сообщения Have
+    public sendHave(index: number) {
+        const message = new Message(msgHave);
+        message.formatHave(index);
+        this._client.write(message.serialize());
+    }
+
     // Функция для отправки сообщения Request
     public sendRequest(index: number, begin: number, length: number) {
         const message = new Message(msgRequest);
@@ -218,6 +258,6 @@ export class Client extends TypedEmitter<IMessageEvents> {
     }
 
     get Choked() {
-        return this._choked;
+        return this._amChoking;
     }
 }
