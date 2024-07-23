@@ -4,7 +4,7 @@
     "main": "index.ts",
     "scripts": {
         "build": "tsc",
-        "start": "cross-env NODE_OPTIONS=--trace-warnings ts-node src/index.ts",
+        "start": "cross-env NODE_OPTIONS=--trace-warnings tsx src/index.ts",
         "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest"
     },
     "devDependencies": {
@@ -14,6 +14,7 @@
         "cross-env": "^7.0.3",
         "ts-jest": "^29.1.2",
         "ts-node": "^10.9.2",
+        "tsx": "^4.16.2",
         "typescript": "^5.3.3"
     },
     "dependencies": {

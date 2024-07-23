@@ -15,10 +15,10 @@ async function main() {
     // Создаём экземпляр MetainfoFile для дальнейшей работы с ним
     const file = new SingleFileMetainfo();
     // Путь до .torrent файла
-    //const filePath = "C:\\bittorrent_for_app\\debian-12.5.0-amd64-netinst.iso.torrent";
+    const filePath = "D:\\bittorrent_for_app\\debian-12.6.0-amd64-netinst.iso.torrent";
     //const filePath = "C:\\bittorrent_for_app\\Ослепительная Грязная Парочка Dirty Pair Flash (Сунага Цукаса) [OVA] [16 из 16] [RUS(ext),JAP+Sub] [1994, приключения, комедия, [rutracker-3926442].torrent";
     //const filePath = "C:\\bittorrent_for_app\\sintel.torrent";
-    const filePath = "C:\\bittorrent_for_app\\Танимура К. - SQL для анализа данных [2024, DjVu, RUS] [rutracker-6396522].torrent";
+    //const filePath = "C:\\bittorrent_for_app\\Танимура К. - SQL для анализа данных [2024, DjVu, RUS] [rutracker-6396522].torrent";
     // Открываем .torrent файл
     await file.open(filePath);
 
@@ -42,7 +42,7 @@ async function main() {
     };
 
     // Начинаем процесс загрузки файла
-    const fileHandle = await fs.open(`C:\\bittorrent_for_app\\${torrent.name}`, "w");
+    const fileHandle = await fs.open(`D:\\bittorrent_for_app\\${torrent.name}`, "w");
     let downloadingProcess = new DownloadingProcess(torrent, fileHandle);
     downloadingProcess.startDownload();
 
