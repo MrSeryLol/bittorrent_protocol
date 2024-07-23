@@ -23,6 +23,7 @@ export class Tracker {
         ];
 
         let announce = new TextDecoder().decode(file.announce); // Ссылка на торрент-файл
+        //let announce = file.announce;
         let charPair = ""; // Переменная для пары байтов
         let decodedInfoHash = ""; // Строка, в которой будет храниться преобразованный info_hash
 
@@ -84,7 +85,9 @@ export class Tracker {
             trackerResponse = bencode.decode(response.data);
         } 
         catch(error) {
-            console.log(error);
+            if (axios.isAxiosError(error)) {
+                console.log(error);
+            }
         }
 
         peers = Peer.unmarshal(Buffer.from(trackerResponse!.peers));

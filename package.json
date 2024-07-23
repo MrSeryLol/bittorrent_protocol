@@ -1,10 +1,10 @@
 {
     "type": "module",
-    "version": "0.0.1",
+    "version": "0.0.2",
     "main": "index.ts",
     "scripts": {
         "build": "tsc",
-        "start": "ts-node src/index.ts",
+        "start": "cross-env NODE_OPTIONS=--trace-warnings tsx src/index.ts",
         "test": "cross-env NODE_OPTIONS=--experimental-vm-modules jest"
     },
     "devDependencies": {
@@ -14,11 +14,13 @@
         "cross-env": "^7.0.3",
         "ts-jest": "^29.1.2",
         "ts-node": "^10.9.2",
+        "tsx": "^4.16.2",
         "typescript": "^5.3.3"
     },
     "dependencies": {
         "axios": "^1.6.8",
         "bencode": "^4.0.0",
-        "iconv-lite": "^0.6.3"
+        "iconv-lite": "^0.6.3",
+        "tiny-typed-emitter": "^2.1.0"
     }
 }
